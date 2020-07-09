@@ -73,11 +73,9 @@ class MagnetWithBalls(list):
             # leftball collision
             try:
                 if i - 1 == self.magnet.index:
-                    self[i].f += SpringForce(self[i].pos, self[i].radius, self[i - 1].real_pos,
-                                              mag(self[i - 1].axis) / 2)
+                    self[i].f += SpringForce(self[i].pos, self[i].radius, self[i - 1].real_pos,mag(self[i - 1].axis) / 2)
                 elif i == self.magnet.index:
-                    self[i].f += SpringForce(self[i].real_pos, mag(self[i].axis) / 2, self[i - 1].pos,
-                                              self[i - 1].radius)
+                    self[i].f += SpringForce(self[i].real_pos, mag(self[i].axis) / 2, self[i - 1].pos,self[i - 1].radius)
                 else:
                     self[i].f += SpringForce(self[i].pos, self[i].radius, self[i - 1].pos, self[i - 1].radius)
             except IndexError:
@@ -86,11 +84,9 @@ class MagnetWithBalls(list):
             # rightball collision
             try:
                 if i == self.magnet.index:
-                    self[i].f += SpringForce(self[i].real_pos, mag(self[i].axis) / 2, self[i + 1].pos,
-                                              self[i + 1].radius)
+                    self[i].f += SpringForce(self[i].real_pos, mag(self[i].axis) / 2, self[i + 1].pos,self[i + 1].radius)
                 elif i + 1 == self.magnet.index:
-                    self[i].f += SpringForce(self[i].pos, self[i].radius, self[i + 1].real_pos,
-                                              mag(self[i + 1].axis) / 2)
+                    self[i].f += SpringForce(self[i].pos, self[i].radius, self[i + 1].real_pos,mag(self[i + 1].axis) / 2)
                 else:
                     self[i].f += SpringForce(self[i].pos, self[i].radius, self[i + 1].pos, self[i + 1].radius)
             except IndexError:
@@ -127,7 +123,7 @@ text=label(pos=vec(0,ball_radius*2,0),color=color.black)
 while True:
     rate(1/dt)
     t += dt            #累計時間
-    text.text="time:%.6f"%t
+    text.text="time:%.6fs"%t
 
     for i in range(len(balls)):
         balls[i].cal_velocity()
