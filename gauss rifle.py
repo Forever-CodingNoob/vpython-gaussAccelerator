@@ -1,6 +1,6 @@
 from vpython import *
-k=100000#彈性係數
-b=0.003#空氣阻力係數
+k=10000000#彈性係數
+b=0.003#空氣阻力係數(ok)
 ball_radius=0.01195 #鐵球直徑(m)
 ball_mass=0.0075 #鐵球質量(kg)
 magnet_length=0.0098 #磁鐵(圓柱體)長(m)
@@ -40,6 +40,9 @@ class MagnetWithBalls(list):
             self.start_calculate_idx = 0
             self.first_ball=sphere(radius=self.radius,color=color.blue,v=vec(0.05,0,0),a=vec(0,0,0),m=ball_mass,opacity=0.1)
         super().__init__([self.first_ball]+[ball() for i in range(amount_of_frontBALL)]+[self.magnet]+[ball() for i in range(amount_of_backBALL)])
+
+        self[-1].color=color.blue#最後一顆設成藍色
+
         for ball in self:
             if not hasattr(ball,'f_arrow'):
                 ball.f_arrow = arrow(color=ball.color, shaftwidth=ball.radius / 2)
@@ -108,17 +111,22 @@ class MagnetWithBalls(list):
 
 scene = canvas(width=1080, height=360,center = vec(0,0,0),background=color.white,range=0.1)
 
-dt = 0.0001    #時間間隔
+dt = 0.00001    #時間間隔
 t = 0         #初始時間
 
 gd= graph(width=1080, height=360,
       title='最末球速率',
       xtitle='t(s)', ytitle='v(m/s)')
 balls=[]
-for i in range(5):
-    balls.append(MagnetWithBalls(vec(0.5*i,0,0),ball_radius/2,0,2,firstball_dist=0.05,first_ball=balls[i-1][-1] if i>0 else None))
-    balls[i].curve=gcurve(color=color.red)
-text=label(pos=vec(0,ball_radius*2,0),color=color.black)
+for i in range(10):
+    balls.append(MagnetWithBalls(vec(0.3*i,0,0),ball_radius/2,0,2,firstball_dist=0.05,first_ball=balls[i-1][-1] if i>0 else None))
+    #balls[i].curve=gcurve(color=color.red)
+last_balls=[balls[0][0]]+[i[-1] for i in balls]
+for last_ball in last_balls:
+    last_ball.curve=gcurve(color=color.red,interval=1000)
+last_balls[0].curve.color=color.blue
+max_v=gcurve(color=color.green,interval=1000)
+text=label(color=color.black)
 
 while True:
     rate(1/dt)
@@ -129,4 +137,11 @@ while True:
         balls[i].cal_velocity()
     for i in range(len(balls)):
         balls[i].update()
-        balls[i].curve.plot(t,balls[i][-1].v.x)
+        #balls[i].curve.plot(t,balls[i][-1].v.x)
+    for i in last_balls:
+        i.curve.plot(t,i.v.x)
+    #for ball in set([ball for ball in ballset for ballset in balls]):
+        #ball.f_arrow.pos=
+    max_v.plot(t,max(*[ball.v.x for ball in last_balls]))
+    scene.center=max([ball for ball in last_balls],key=lambda ball:ball.v.x).pos
+    text.pos=scene.center+vec(0,ball_radius*2,0)
