@@ -1,10 +1,13 @@
 from vpython import *
 k=10000000#彈性係數
-b=0.003#空氣阻力係數(ok)
+b_default=0.003#空氣阻力係數
+b=b_default
 ball_radius=0.01195 #鐵球直徑(m)
 ball_mass=0.0075 #鐵球質量(kg)
 magnet_length=0.0098 #磁鐵(圓柱體)長(m)
 magnet_mass=0.006 #磁鐵(圓柱體)質量(kg)
+DEFAULT_BALLS_SET_AMOUNT=5
+current_balls_set_amount=DEFAULT_BALLS_SET_AMOUNT
 def AirResistance(obj):
     #print('air resistance:',-b*obj.v)
     return -b*obj.v
@@ -38,7 +41,7 @@ class MagnetWithBalls(list):
         else:
             self.isconnected_to_another = False
             self.start_calculate_idx = 0
-            self.first_ball=sphere(radius=self.radius,color=color.blue,v=vec(0.05,0,0),a=vec(0,0,0),m=ball_mass,opacity=0.1)
+            self.first_ball=sphere(radius=self.radius,color=color.blue,v=vec(0.05,0,0),a=vec(0,0,0),m=ball_mass,opacity=1)
         super().__init__([self.first_ball]+[ball() for i in range(amount_of_frontBALL)]+[self.magnet]+[ball() for i in range(amount_of_backBALL)])
 
         self[-1].color=color.blue#最後一顆設成藍色
@@ -46,6 +49,12 @@ class MagnetWithBalls(list):
         for ball in self:
             if not hasattr(ball,'f_arrow'):
                 ball.f_arrow = arrow(color=ball.color, shaftwidth=ball.radius / 2)
+
+        self.hasCurve=[self[-1]]
+        self[-1].curve=gcurve(color=color.red,interval=1000)
+        if not self.isconnected_to_another:
+            self[0].curve=gcurve(color=color.blue,interval=1000)
+            self.hasCurve.append(self[0])
 
         self.setpos(position,firstball_dist,setFirstBall=not self.isconnected_to_another)
     def setpos(self,position,firstball_dist,setFirstBall=True):
@@ -95,7 +104,7 @@ class MagnetWithBalls(list):
             except IndexError:
                 pass
     def update(self):
-        # 若第一顆是上一組最後一顆，則它的位置已經計算過了!!!!!!)
+        # 若第一顆是上一組最後一顆，則它的位置已經計算過了!!!!!!
         for i in range(self.start_calculate_idx,len(self)):
             self[i].a = self[i].f / self[i].m
             self[i].v += self[i].a * dt
@@ -107,7 +116,17 @@ class MagnetWithBalls(list):
                 self[i].f_arrow.pos = self[i].pos + vec(0, (i + 1) * self[i].radius * 2, 0)
 
             self[i].f_arrow.axis = self[i].f * 0.01
-
+    def __del__(self):
+        for ball in self[self.start_calculate_idx::]:
+            if ball in self.hasCurve:
+                ball.curve.visible=False
+                global disabled_curves
+                disabled_curves.append(ball.curve)
+            ball.f_arrow.visible=False
+            ball.visible=False
+            del ball.f_arrow
+            del ball
+        del self
 
 scene = canvas(width=1080, height=360,center = vec(0,0,0),background=color.white,range=0.1)
 
@@ -118,26 +137,91 @@ gd= graph(width=1080, height=360,
       title='最末球速率',
       xtitle='t(s)', ytitle='v(m/s)')
 balls=[]
-for i in range(10):
-    balls.append(MagnetWithBalls(vec(0.3*i,0,0),ball_radius/2,0,2,firstball_dist=0.05,first_ball=balls[i-1][-1] if i>0 else None))
-    #balls[i].curve=gcurve(color=color.red)
-last_balls=[balls[0][0]]+[i[-1] for i in balls]
-for last_ball in last_balls:
-    last_ball.curve=gcurve(color=color.red,interval=1000)
-last_balls[0].curve.color=color.blue
+disabled_curves=[]
+def addBalls(balls_list,amount):
+    for i in range(len(balls_list),len(balls_list)+amount):
+        balls_list.append(MagnetWithBalls(vec(0.3*i,0,0),ball_radius/2,0,2,firstball_dist=0.05,first_ball=balls[i-1][-1] if i>0 else None))
+        #balls[i].curve=gcurve(color=color.red)
+def delBalls(balls_list,amount):
+    if len(balls_list)<amount:
+        raise ValueError
+    for i in range(len(balls_list)-1,len(balls_list)-1-(amount),-1):
+        del balls_list[i]
+        print(f"balls {i} deleted!")
+addBalls(balls,DEFAULT_BALLS_SET_AMOUNT)
+
+# last_balls=[balls[0][0]]+[i[-1] for i in balls]
+# for last_ball in last_balls:
+#     last_ball.curve=gcurve(color=color.red,interval=1000)
+# last_balls[0].curve.color=color.blue
 max_v=gcurve(color=color.green,interval=1000)
 text=label(color=color.black)
+
+'''調整高斯槍級數'''
+def  on_slider_change(slider):
+    global balls,current_balls_set_amount
+    amount_delta=slider.value-len(balls)
+    if amount_delta>0:
+        addBalls(balls,amount_delta)
+    elif amount_delta<0:
+        delBalls(balls,-amount_delta)
+    print(balls)
+    current_balls_set_amount=slider.value
+scene.append_to_caption('\n')
+wtext(text='調整高斯槍級數(有幾組一級高斯槍串聯)',pos=scene.caption_anchor)
+scene.append_to_caption('\n\n')
+wtext(text='1組',pos=scene.caption_anchor)
+slider(min=1,max=10,step=1,bind=on_slider_change,pos=scene.caption_anchor,top=0,bottom=0,value=DEFAULT_BALLS_SET_AMOUNT)
+wtext(text='10組',pos=scene.caption_anchor)
+
+'''調整空氣阻力係數'''
+def  on_slider_change2(slider):
+    global b
+    b=slider.value
+
+scene.append_to_caption('\n\n')
+wtext(text=f'調整空氣阻力係數(預設為{b_default})',pos=scene.caption_anchor)
+scene.append_to_caption('\n\n')
+wtext(text='0',pos=scene.caption_anchor)
+slider(min=0,max=0.05,step=0.001,bind=on_slider_change2,pos=scene.caption_anchor,top=0,bottom=0,value=b_default)
+wtext(text='0.05',pos=scene.caption_anchor)
+
+'''restart button'''
+def on_restart_btn_clicked(btn):
+    global balls,t,max_v,disabled_curves
+    for i in range(len(balls)-1,-1,-1):
+        #delete the set of balls
+        del balls[i]
+    # clear all points on curves
+    for curve in disabled_curves:
+        curve.delete()
+        del curve
+    disabled_curves=[]
+    addBalls(balls,current_balls_set_amount)
+    t=0
+    max_v.delete()
+scene.append_to_caption('\n\n\n\n\n')
+button(bind=on_restart_btn_clicked,pos=scene.caption_anchor,text='restart')
+scene.append_to_caption('\n\n')
+
+
 
 while True:
     rate(1/dt)
     t += dt            #累計時間
     text.text="time:%.6fs"%t
-
+    last_balls=[ball for balls_set in balls for ball in balls_set.hasCurve]
     for i in range(len(balls)):
-        balls[i].cal_velocity()
+        try:
+            balls[i].cal_velocity()
+        except (IndexError, AttributeError):
+            pass
     for i in range(len(balls)):
-        balls[i].update()
-        #balls[i].curve.plot(t,balls[i][-1].v.x)
+        try:
+            balls[i].update()
+            #balls[i].curve.plot(t,balls[i][-1].v.x)
+        except (IndexError,AttributeError):
+            pass
     for i in last_balls:
         i.curve.plot(t,i.v.x)
     #for ball in set([ball for ball in ballset for ballset in balls]):
